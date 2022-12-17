@@ -51,5 +51,22 @@ class BoneMLP(nn.Module):
         )
 
     def forward(self, bone_feat):
-
         return self.net(bone_feat)
+
+
+class PoseNDF(nn.Module):
+
+    def __init__(self, config):
+        super(PoseNDF, self).__init__()
+
+        self.device = config['train']['device']
+        self.dfnet = DFNet(config['model']['DFNet']).to(self.device)
+
+    def train(self, mode=True):
+        super().train(mode)
+
+    def forward(self, inputs):
+        pose = inputs['pose'].to(device=self.device)
+        rand_pose_in = nn.functional.normalize(pose.to(device=self.device), dim=2)
+        dist_pred = self.dfnet(rand_pose_in.reshape(self.batch_size, 84))
+        return dist_pred
