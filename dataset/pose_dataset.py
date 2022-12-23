@@ -6,7 +6,7 @@ from pathlib import Path
 
 
 class PoseDataSet(Dataset):
-    def __init__(self, data_dir: Path, non_zero_pose_percentage: float = 0.8):
+    def __init__(self, data_dir: Path, zero_distance_pose_percentage: float = 1.0):
         self.valid_poses = None
         data_files = data_dir.rglob('*.npz')
         for mocap_file in data_files:
@@ -20,12 +20,12 @@ class PoseDataSet(Dataset):
                 self.valid_poses = pose_data_quaternion
             else:
                 self.valid_poses = torch.cat((self.valid_poses, pose_data_quaternion), axis=0)
-        assert 0 < non_zero_pose_percentage < 1, f"`non_zero_pose_percentage` is {non_zero_pose_percentage} and must be between 0-1" 
-        self.length = int(self.valid_poses.shape[0] / non_zero_pose_percentage)
-    
+        assert 0 < zero_distance_pose_percentage <= 1, f"`non_zero_pose_percentage` is {zero_distance_pose_percentage} and must be between 0-1" 
+        self.length = int(self.valid_poses.shape[0] / zero_distance_pose_percentage)
+
     def __len__(self) -> int:
         return self.length
-    
+
     def __getitem__(self, index):
         if index < self.valid_poses.shape[0]:
             return (self.valid_poses[index], 0)
