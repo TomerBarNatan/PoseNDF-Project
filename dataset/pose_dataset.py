@@ -6,6 +6,9 @@ from pytorch3d.transforms import axis_angle_to_quaternion
 from pathlib import Path
 
 
+torch.manual_seed(123)
+
+
 class PoseDataSet(Dataset):
     def __init__(self, data_dir: Path, zero_distance_pose_percentage: float = 0.5, noise_sigma: float = 0.01, k_neighbors: int = 5,
                  weighted_sum: bool = False, device='cpu'):
@@ -19,6 +22,8 @@ class PoseDataSet(Dataset):
                 The larger the sigma, the further the made up pose can get. Defaults to 0.
             k_neighbors: When creating random poses, for each random pose look for the `k_neighbors` closest poses (in eucledian distance) 
                 then for them calculate the mean quaternion distance.
+            weighted_sum: Whether to use weighted sum when calculating the distance of a random pose from the valid poses. 
+                The weighted sum gives more weight the closer the rotation is to the root.
         """
         self.valid_poses = None
         self.device = device
@@ -44,17 +49,39 @@ class PoseDataSet(Dataset):
         self.knn = NearestNeighbors(n_neighbors=k_neighbors)
         self.knn.fit(self.valid_poses.cpu().numpy().reshape(self.valid_poses.shape[0], -1))
 
-    def _create_non_zero_pose(self):
+    def _create_non_zero_pose(self) -> torch.Tensor:
+        """Create a non zero pose in the following way:
+        1. Choose a random valid pose
+        2. Add to it normal noise with std of self.noise_sigma
+        3. Normalize the poses as quaternions are of unit norm.
+
+        Returns:
+            torch.Tensor: a random non-zero pose. 21x4
+        """
         idx = np.random.randint(0, self.valid_poses.shape[0])  # TODO: add seed
         random_pose = self.valid_poses[idx].clone()
         random_pose += torch.normal(0, self.noise_sigma, random_pose.shape)
         random_pose /= np.linalg.norm(random_pose, axis=1, keepdims=True)
         return random_pose
     
-    def _calculate_distance_to_zero_set(self, pose_rotations):
+    def _calculate_distance_to_zero_set(self, pose_rotations) -> float:
+        """ Calculate distance to zero set in the following way:
+            1. Get the k nearest zero-set poses from the valid data
+            2. calculate the mean quaternion distance from the pose_rotations to them.
+            
+            quaternion distance is calculated as follows:
+            $\sqrt {(\sum_1^21 (w_i arccos(|<q_1, q_2>|)^2 ))}$
+            
+
+        Args:
+            pose_rotations (_type_): pose of shape 21x4
+
+        Returns:
+            float: _description_
+        """
         k_nearest_poses_indices = self.knn.kneighbors(pose_rotations.flatten()[None])[1]
         k_nearest_poses = self.valid_poses[k_nearest_poses_indices]
-        quaternion_dists = torch.arccos(torch.einsum("bpq,pq->bp", k_nearest_poses, pose_rotations)) ** 2
+        quaternion_dists = torch.arccos(torch.abs(torch.einsum("bpq,pq->bp", k_nearest_poses, pose_rotations))) ** 2
         quaternion_dists = torch.sqrt(torch.sum(self.pose_weights * quaternion_dists, axis=1))
         return quaternion_dists.mean()
 
