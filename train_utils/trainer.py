@@ -55,10 +55,10 @@ class PoseNDF_trainer:
         self.model.train()
         epoch_loss = AverageMeter()
         loss = 0.0
-        for i, inputs in enumerate(self.train_dataset):
+        for i, (poses, labels) in enumerate(self.train_dataset):
             self.optimizer.zero_grad()
-            dist_pred = self.model(inputs)
-            dist_gt = inputs['dist'].to(device=self.device)
+            dist_pred = self.model(poses)
+            dist_gt = labels.to(device=self.device)
             loss = self.loss_func(dist_pred[:, 0], dist_gt)
             loss.backward()
             self.optimizer.step()

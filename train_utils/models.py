@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 
 
@@ -22,7 +23,7 @@ class DFNet(nn.Module):
 
     def forward(self, p):
 
-        x = p.reshape(len(p), -1)
+        x = p.reshape(len(p), -1).to(torch.float32)
 
         for l in range(self.num_layers - 1):
             layer = self.layers[l]
@@ -65,7 +66,7 @@ class PoseNDF(nn.Module):
         super().train(mode)
 
     def forward(self, inputs):
-        pose = inputs['pose'].to(device=self.device)
+        pose = inputs.to(device=self.device)
         rand_pose_in = nn.functional.normalize(pose.to(device=self.device), dim=2)
-        dist_pred = self.dfnet(rand_pose_in.reshape(self.batch_size, 84))
+        dist_pred = self.dfnet(rand_pose_in.reshape(rand_pose_in.shape[0], 84))
         return dist_pred
