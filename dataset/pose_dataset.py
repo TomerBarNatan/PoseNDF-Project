@@ -2,15 +2,16 @@ import torch
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
 from torch.utils.data import Dataset
-from pytorch3d.transforms import axis_angle_to_quaternion
+# from pytorch3d.transforms import axis_angle_to_quaternion
+from scipy.spatial.transform import Rotation as R
 from pathlib import Path
-
 
 torch.manual_seed(123)
 
 
 class PoseDataSet(Dataset):
-    def __init__(self, data_dir: Path, zero_distance_pose_percentage: float = 0.5, noise_sigma: float = 0.01, k_neighbors: int = 5,
+    def __init__(self, data_dir: str, zero_distance_pose_percentage: float = 0.5, noise_sigma: float = 0.01,
+                 k_neighbors: int = 5,
                  weighted_sum: bool = False, device='cpu'):
         """Read and load all available pose data from the data dir (AMASS Data set)
            The loaded poses are the 0-set poses and will have a 0 distance.
@@ -25,10 +26,12 @@ class PoseDataSet(Dataset):
             weighted_sum: Whether to use weighted sum when calculating the distance of a random pose from the valid poses. 
                 The weighted sum gives more weight the closer the rotation is to the root.
         """
+        data_dir = Path(data_dir)
         self.valid_poses = None
         self.device = device
         self.noise_sigma = noise_sigma
-        self.pose_weights = torch.tensor([1] * 21) if not weighted_sum else torch.tensor([7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 3, 3, 3, 2, 2, 1, 1])
+        self.pose_weights = torch.tensor([1] * 21) if not weighted_sum else torch.tensor(
+            [7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 3, 3, 3, 2, 2, 1, 1])
         self.pose_weights = torch.nn.functional.normalize(self.pose_weights.type(torch.float32), dim=0).to(self.device)
         data_files = data_dir.rglob('*.npz')
         for mocap_file in data_files:
@@ -36,16 +39,21 @@ class PoseDataSet(Dataset):
             if mocap_data.get('pose_body') is None:
                 print(f"File {mocap_file} does not contain `pose_body` data.")
                 continue
-            pose_data_axis_angel = torch.from_numpy(np.load(mocap_file)['pose_body'].astype(np.float32)).view(-1, 21, 3).to(self.device)
-            pose_data_quaternion = axis_angle_to_quaternion(pose_data_axis_angel)
+            pose_data_axis_angel = torch.from_numpy(np.load(mocap_file)['pose_body'].astype(np.float32)).view(-1, 21,
+                                                                                                              3).to(
+                self.device)
+            pose_data_quaternion = torch.stack(
+                [torch.from_numpy(R.from_rotvec(x_i).as_quat()) for x_i in torch.unbind(pose_data_axis_angel, dim=0)],
+                dim=0)
+            # pose_data_quaternion = axis_angle_to_quaternion(pose_data_axis_angel)
             # TODO: add double cover augmentations
             if self.valid_poses is None:
                 self.valid_poses = pose_data_quaternion
             else:
                 self.valid_poses = torch.cat((self.valid_poses, pose_data_quaternion), axis=0)
-        assert 0 < zero_distance_pose_percentage <= 1, f"`non_zero_pose_percentage` is {zero_distance_pose_percentage} and must be between 0-1" 
+        assert 0 < zero_distance_pose_percentage <= 1, f"`non_zero_pose_percentage` is {zero_distance_pose_percentage} and must be between 0-1"
         self.length = int(self.valid_poses.shape[0] / zero_distance_pose_percentage)
-        
+
         self.knn = NearestNeighbors(n_neighbors=k_neighbors)
         self.knn.fit(self.valid_poses.cpu().numpy().reshape(self.valid_poses.shape[0], -1))
 
@@ -63,7 +71,7 @@ class PoseDataSet(Dataset):
         random_pose += torch.normal(0, self.noise_sigma, random_pose.shape)
         random_pose /= np.linalg.norm(random_pose, axis=1, keepdims=True)
         return random_pose
-    
+
     def _calculate_distance_to_zero_set(self, pose_rotations) -> float:
         """ Calculate distance to zero set in the following way:
             1. Get the k nearest zero-set poses from the valid data
@@ -95,10 +103,10 @@ class PoseDataSet(Dataset):
             pose_rotations = self._create_non_zero_pose()
             distance = self._calculate_distance_to_zero_set(pose_rotations)
         return pose_rotations, distance
-        
-        
+
+
 if __name__ == '__main__':
-    amass_path = Path("/Users/orlichter/Documents/school/amass/data")
+    amass_path = Path("C://Users//tomer//PycharmProjects//PoseNDF-Project//amass//ACCAD")
     dataset = PoseDataSet(amass_path)
-    dataset[dataset.length-1]
+    dataset[dataset.length - 1]
     pass

@@ -1,12 +1,12 @@
 from __future__ import division
-from models import PoseNDF
+from train_utils.models import PoseNDF
 import torch
 import os
 from torch.utils.tensorboard import SummaryWriter
 from glob import glob
 import torch.nn as nn
-from model.load_data import PoseData
-from average_meter import AverageMeter
+from dataset.pose_dataset import PoseDataSet
+from train_utils.average_meter import AverageMeter
 import shutil
 
 
@@ -17,17 +17,6 @@ class PoseNDF_trainer:
         self.device = config['train']['device']
         self.enc_name = 'Raw'
         self.batch_size = config['train']['batch_size']
-
-        # NOT IMPLEMENTED YET
-        self.train_dataset = PoseData('train', data_path=config['data']['data_dir'],
-                                      batch_size=self.batch_size,
-                                      num_workers=config['train']['num_worker'])
-        self.val_dataset = PoseData('train', data_path=config['data']['data_dir'],
-                                    batch_size=self.batch_size,
-                                    num_workers=config['train']['num_worker'])
-        self.train_dataset = self.train_dataset.get_loader()
-        self.val_dataset = self.val_dataset.get_loader()
-        #################
 
         self.learning_rate = config['train']['optimizer_param']
         self.model = PoseNDF(config).to(self.device)
@@ -40,6 +29,11 @@ class PoseNDF_trainer:
         if config['train']['continue_train']:
             self.ep = self.load_checkpoint()
 
+        train_dataset = PoseDataSet(data_dir=config['data']['data_dir'])
+        val_dataset = PoseDataSet(data_dir=config['data']['data_dir'])
+        self.train_dataset = self.get_loader(train_dataset, num_workers=config['train']['num_worker'])
+        self.val_dataset = self.get_loader(val_dataset, num_workers=config['train']['num_worker'])
+
     def init_net(self, config):
         self.iter_nums = 0
 
@@ -47,7 +41,7 @@ class PoseNDF_trainer:
         self.exp_name = config['experiment']['exp_name']
         loss_type = config['train']['loss_type']
 
-        self.exp_name = f"{self.exp_name}_{config['model']['DFNet']['act']}_{loss_type}_{config['train']['optimizer_param']}"
+        self.exp_name = f"{self.exp_name}_{config['model']['CanSDF']['act']}_{loss_type}_{config['train']['optimizer_param']}"
         self.exp_path = f"{config['experiment']['root_dir']}/{self.exp_name}/"
         self.checkpoint_path = f"{self.exp_path}checkpoints/"
         if not os.path.exists(self.checkpoint_path):
@@ -137,3 +131,7 @@ class PoseNDF_trainer:
 
         epoch = checkpoint['epoch']
         return epoch
+
+    def get_loader(self, dataset, num_workers, shuffle=False):
+        return torch.utils.data.DataLoader(
+            dataset, batch_size=self.batch_size, num_workers=num_workers, shuffle=shuffle, drop_last=True)

@@ -1,0 +1,60 @@
+data:
+  data_dir: "C://Users//tomer//PycharmProjects//PoseNDF-Project//amass//ACCAD" # Training data directory
+  sample_pt: 100000
+  dc: dc
+  sample_distribution: [0.5, 0.5]
+  sample_sigmas: [ 0.0, 0.001]
+experiment:
+  bodymodel: smpl
+  root_dir: ./posendf_model/ # Where to save checkpoints and final trained model_quat #todo
+  data_name: PoseNDFdata
+  type: PoseNDF_Trainer
+  inp_name: xyz
+  exp_name: small_data
+model:
+  PosEnc: PosEnc
+  CanSDF:
+    name: 'SDF'
+    total_dim: 960
+    in_dim: 84
+    num_parts: 21
+    num_layers: 5
+    ff_enc: False
+    dims: [ 512, 512, 512, 512, 512, 512, 512 ]
+    act: lrelu
+    beta: 100
+  StrEnc:
+    use: False
+    name: 'StructureEncoder'
+    out_dim: 6
+    in_dim: 84
+    num_parts: 24
+    pose_enc: False
+    num_layers: 2
+    ff_enc: False
+    act: lrelu
+    beta: 100
+train:
+  val: False
+  test: False
+  pde: False
+  device: cpu
+  batch_size: 1024
+  continue_train: true
+  optimizer: Adam
+  optimizer_param: 0.00001 #1e-4  #1e-4 for lr and 0.9 for momentum
+  eval: False
+  num_worker: 0
+  max_epoch: 200000
+  loss_type: l1   #todo
+  clamp_dist: 0.0  # 2dsphere data is prepared in such way
+  man_loss: 1.0
+  dist: 1.0
+  eikonal: 1.0
+  body_enc: true
+  disp_reg: true
+  grad: false
+  train_stage_1: 100000  #pretrain weight prediction
+  train_stage_2: 100000  #freeze weight prediction
+  square: False
+  abs: True

@@ -12,8 +12,7 @@ class DFNet(nn.Module):
 
         self.num_layers = len(dims)
         self.activation = nn.ReLU()
-        self.layers = []
-
+        self.layers = nn.ModuleList()
         for l in range(self.num_layers - 1):
             layer = nn.Linear(dims[l], dims[l + 1])
 
@@ -60,7 +59,7 @@ class PoseNDF(nn.Module):
         super(PoseNDF, self).__init__()
 
         self.device = config['train']['device']
-        self.dfnet = DFNet(config['model']['DFNet']).to(self.device)
+        self.dfnet = DFNet(config['model']['CanSDF']).to(self.device) #TODO: this line is different
 
     def train(self, mode=True):
         super().train(mode)

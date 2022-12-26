@@ -1,6 +1,6 @@
 import argparse
 import yaml
-from trainer import PoseNDF_trainer
+from train_utils.trainer import PoseNDF_trainer
 import shutil
 
 
@@ -8,8 +8,8 @@ def train(config, config_path):
     trainer = PoseNDF_trainer(config)
     copy_config = f"{config['experiment']['root_dir']}/{trainer.exp_name}/config.yaml"
     shutil.copyfile(config_path, copy_config)
-    val = config['experiment']['val']
-    test = config['experiment']['test']
+    val = config['experiment'].get('val', False)
+    test = config['experiment'].get('test', False)
     if test:
         trainer.inference(trainer.ep)
     for i in range(trainer.ep, config['train']['max_epoch']):
