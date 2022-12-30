@@ -1,5 +1,5 @@
 data:
-  data_dir: "C://Users//tomer//PycharmProjects//PoseNDF-Project//amass//ACCAD" # Training data directory
+  data_dir: "/Users/orlichter/Documents/school/amass" # Training data directory
   sample_pt: 100000
   dc: dc
   sample_distribution: [0.5, 0.5]
@@ -44,8 +44,8 @@ train:
   optimizer: Adam
   optimizer_param: 0.00001 #1e-4  #1e-4 for lr and 0.9 for momentum
   eval: False
-  num_worker: 0
-  max_epoch: 200000
+  num_worker: 5
+  max_epoch: 100
   loss_type: l1   #todo
   clamp_dist: 0.0  # 2dsphere data is prepared in such way
   man_loss: 1.0

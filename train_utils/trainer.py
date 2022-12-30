@@ -132,6 +132,6 @@ class PoseNDF_trainer:
         epoch = checkpoint['epoch']
         return epoch
 
-    def get_loader(self, dataset, num_workers, shuffle=False):
+    def get_loader(self, dataset, num_workers, shuffle=True):
         return torch.utils.data.DataLoader(
             dataset, batch_size=self.batch_size, num_workers=num_workers, shuffle=shuffle, drop_last=True)
