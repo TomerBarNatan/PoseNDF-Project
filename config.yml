@@ -11,6 +11,7 @@ experiment:
   type: PoseNDF_Trainer
   inp_name: xyz
   exp_name: small_data
+  val: True
 model:
   PosEnc: PosEnc
   CanSDF:

@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import yaml
+from pathlib import Path
 
 
 class DFNet(nn.Module):
@@ -60,7 +62,7 @@ class PoseNDF(nn.Module):
         super(PoseNDF, self).__init__()
 
         self.device = config['train']['device']
-        self.dfnet = DFNet(config['model']['CanSDF']).to(self.device) #TODO: this line is different
+        self.dfnet = DFNet(config['model']['CanSDF']).to(self.device)  #TODO: this line is different
 
     def train(self, mode=True):
         super().train(mode)
@@ -70,3 +72,15 @@ class PoseNDF(nn.Module):
         rand_pose_in = nn.functional.normalize(pose.to(device=self.device), dim=2)
         dist_pred = self.dfnet(rand_pose_in.reshape(rand_pose_in.shape[0], 84))
         return dist_pred
+    
+    @classmethod
+    def from_checkpoint_dir(cls, checkpoint_path: Path):
+        config_path = list(checkpoint_path.glob("*.yaml"))[0]
+        with open(str(config_path), 'rb') as f:
+            config = yaml.load(f, Loader=yaml.FullLoader)
+        pose_ndf_model = cls(config)
+        
+        checkpoint_path = checkpoint_path / 'checkpoints' / 'checkpoint_epoch_best.tar'
+        checkpoint = torch.load(str(checkpoint_path))
+        pose_ndf_model.load_state_dict(checkpoint['model_state_dict'])
+        return pose_ndf_model

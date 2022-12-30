@@ -12,7 +12,7 @@ torch.manual_seed(123)
 
 
 class PoseDataSet(Dataset):
-    def __init__(self, data_dir: str, process_data: bool = True, zero_distance_pose_percentage: float = 0.99, noise_sigma: float = 0.01,
+    def __init__(self, data_dir: str, process_data: bool = False, zero_distance_pose_percentage: float = 0.99, noise_sigma: float = 0.01,
                  k_neighbors: int = 5, weighted_sum: bool = False, device='cpu'):
         """Read and load all available pose data from the data dir (AMASS Data set)
            The loaded poses are the 0-set poses and will have a 0 distance.

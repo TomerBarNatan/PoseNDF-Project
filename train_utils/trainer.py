@@ -25,7 +25,7 @@ class PoseNDF_trainer:
         ##create smpl layer
         self.init_net(config)
         self.ep = 0
-        self.min_loss = 10000.
+        self.min_loss = float('inf')
         if config['train']['continue_train']:
             self.ep = self.load_checkpoint()
 
@@ -75,11 +75,11 @@ class PoseNDF_trainer:
         val_data_loader = self.val_dataset
         out_path = os.path.join(self.exp_path, f'latest_{epoch}')
         os.makedirs(out_path, exist_ok=True)
-        for batch in val_data_loader:
-            dist_pred = self.model(batch)
-            dist_gt = batch['dist'].to(device=self.device)
+        for (poses, labels) in val_data_loader:
+            dist_pred = self.model(poses)
+            dist_gt = labels.to(device=self.device)
             loss = self.loss_func(dist_pred[:, 0], dist_gt)
-            sum_val_loss += loss['data'].item()
+            sum_val_loss += loss.item()
         val_loss = sum_val_loss / len(val_data_loader)
         self.writer.add_scalar("validation_test/epoch", val_loss, epoch)
 
@@ -89,11 +89,11 @@ class PoseNDF_trainer:
         self.model.eval()
         sum_val_loss = 0
         val_data_loader = self.val_dataset
-        for batch in val_data_loader:
-            dist_pred = self.model(batch)
-            dist_gt = batch['dist'].to(device=self.device)
+        for (poses, dist)  in val_data_loader:
+            dist_pred = self.model(poses)
+            dist_gt = dist.to(device=self.device)
             loss = self.loss_func(dist_pred[:, 0], dist_gt)
-            sum_val_loss += loss['data'].item()
+            sum_val_loss += loss.item()
         val_loss = sum_val_loss / len(val_data_loader)
         self.writer.add_scalar("validation_vert/epoch", val_loss, epoch)
 
