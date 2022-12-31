@@ -13,10 +13,9 @@ np.random.seed(123)
 
 
 class PoseDataSet(Dataset):
-    def __init__(self, data_dir: str, process_data: bool = False, zero_distance_pose_percentage: float = 0.9, noise_sigma: float = 0.01,
+    def __init__(self, data_dir: str, process_data: bool = False, zero_distance_pose_percentage: float = 0.6, noise_sigma: float = 0.01,
                  k_neighbors: int = 5, weighted_sum: bool = False, device='cpu'):
-        """Read and load all available pose data from the data dir (AMASS Data set)
-           The loaded poses are the 0-set poses and will have a 0 distance.
+        """
 
         Args:
             data_dir (Path): _description_
@@ -51,6 +50,12 @@ class PoseDataSet(Dataset):
                 self.poses = data['poses']
 
     def _process_new_data(self):
+        """
+            Read and load all available pose data from the data dir (AMASS Data set)
+            The loaded poses are the 0-set poses and will have a 0 distance.
+            when done, create the rest of the non zero poses such that the percent of 0 pose data will be  self.zero_distance_pose_percentage.
+            Save everything in dataset and create a file to save all the data.
+        """
         data_files = self.data_dir.rglob('*.npz')
         for mocap_file in data_files:
             mocap_data = np.load(mocap_file)
@@ -96,7 +101,7 @@ class PoseDataSet(Dataset):
         idx = np.random.randint(0, self.valid_poses.shape[0], amount_of_non_zero_poses)  # TODO: add seed
         random_pose = self.valid_poses[idx].clone()
         random_pose += torch.normal(0, self.noise_sigma, random_pose.shape)
-        random_pose /= np.linalg.norm(random_pose, axis=1, keepdims=True)
+        random_pose /= np.linalg.norm(random_pose, axis=2, keepdims=True)
         return random_pose.type(torch.float32)
 
     def _calculate_distance_to_zero_set(self, poses_rotations) -> float:
