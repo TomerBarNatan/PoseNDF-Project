@@ -9,14 +9,15 @@ from tqdm import tqdm
 import pickle as pkl
 
 torch.manual_seed(123)
+np.random.seed(123)
 
 
 class PoseDataSet(Dataset):
-    def __init__(self, data_dir: str, process_data: bool = False, zero_distance_pose_percentage: float = 0.99, noise_sigma: float = 0.01,
+    def __init__(self, data_dir: str, process_data: bool = False, zero_distance_pose_percentage: float = 0.9, noise_sigma: float = 0.01,
                  k_neighbors: int = 5, weighted_sum: bool = False, device='cpu'):
         """Read and load all available pose data from the data dir (AMASS Data set)
            The loaded poses are the 0-set poses and will have a 0 distance.
-           
+
         Args:
             data_dir (Path): _description_
             process_data (bool): Whether to recalculate non-zero poses from scratch.
@@ -36,19 +37,19 @@ class PoseDataSet(Dataset):
         self.zero_distance_pose_percentage = zero_distance_pose_percentage
         self.k_neighbors = k_neighbors
         self.noise_sigma = noise_sigma
-        self.pose_weights = torch.tensor([1] * 21) if not weighted_sum else torch.tensor(
-            [7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 3, 3, 3, 2, 2, 1, 1])
+        self.pose_weights = torch.tensor([1] * 21) if not weighted_sum else torch.tensor([7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 3, 3, 3, 2, 2, 1, 1])
         self.pose_weights = torch.nn.functional.normalize(self.pose_weights.type(torch.float32), dim=0).to(self.device)
-        
-        if process_data or not (self.data_dir / 'processed_poses.pkl').exists():
+
+        data_output_path = self.data_dir / f'processed_poses_{self.zero_distance_pose_percentage}_{self.noise_sigma}.pkl'
+        if process_data or not (data_output_path).exists():
             self._process_new_data()
         else:
-            print(f"Loading preprocessed data from: `{self.data_dir / 'processed_poses.pkl'}`")
-            with open(str(self.data_dir / 'processed_poses.pkl'), 'rb') as f:
+            print(f"Loading preprocessed data from: `{data_output_path}`")
+            with open(str(data_output_path), 'rb') as f:
                 data = pkl.load(f)
                 self.distances = data['distances']
                 self.poses = data['poses']
-        
+
     def _process_new_data(self):
         data_files = self.data_dir.rglob('*.npz')
         for mocap_file in data_files:
@@ -74,12 +75,13 @@ class PoseDataSet(Dataset):
         distance = self._calculate_distance_to_zero_set(pose_rotations)
         self.poses = torch.cat([self.poses, pose_rotations])
         self.distances = torch.hstack([self.distances, distance])
-        
+
         # double cover augmentation
         self._double_cover_augmentation()
         
-        print(f"Saving processed data to: {self.data_dir / 'processed_poses.pkl'}")
-        with open(str(self.data_dir / 'processed_poses.pkl'), 'wb') as f:
+        output_file_path = self.data_dir / f'processed_poses_{self.zero_distance_pose_percentage}_{self.noise_sigma}.pkl'
+        print(f"Saving processed data to: {output_file_path}")
+        with open(str(output_file_path), 'wb') as f:
             pkl.dump({"poses": self.poses, "distances": self.distances}, f)
         
     def _create_non_zero_pose(self, amount_of_non_zero_poses) -> torch.Tensor:
