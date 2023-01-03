@@ -13,7 +13,7 @@ np.random.seed(123)
 
 
 class PoseDataSet(Dataset):
-    def __init__(self, data_dir: str, process_data: bool = False, zero_distance_pose_percentage: float = 0.6, noise_sigma: float = 0.01,
+    def __init__(self, data_dir: str, process_data: bool = False, zero_distance_pose_percentage: float = 0.3, noise_sigma: float = 0.01,
                  k_neighbors: int = 5, weighted_sum: bool = False, device='cpu'):
         """
 
@@ -84,6 +84,12 @@ class PoseDataSet(Dataset):
         # double cover augmentation
         self._double_cover_augmentation()
         
+        nan_distances = self.distances.isnan()
+        if nan_distances.any():
+            print("Found some nan distances. Maybe there's a bug. For now removing them")
+            self.distances = self.distances[~nan_distances]
+            self.poses = self.poses[~nan_distances]
+        
         output_file_path = self.data_dir / f'processed_poses_{self.zero_distance_pose_percentage}_{self.noise_sigma}.pkl'
         print(f"Saving processed data to: {output_file_path}")
         with open(str(output_file_path), 'wb') as f:
@@ -145,6 +151,6 @@ class PoseDataSet(Dataset):
 
 if __name__ == '__main__':
     amass_path = Path("/Users/orlichter/Documents/school/amass")
-    dataset = PoseDataSet(amass_path)
+    dataset = PoseDataSet(amass_path, zero_distance_pose_percentage=0.3)
     dataset[ - 10000]
     pass
