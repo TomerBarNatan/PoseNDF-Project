@@ -14,7 +14,7 @@ np.random.seed(123)
 
 class PoseDataSet(Dataset):
     def __init__(self, data_dir: str, process_data: bool = False, zero_distance_pose_percentage: float = 0.3, noise_sigma: float = 0.01,
-                 k_neighbors: int = 5, weighted_sum: bool = False, device='cpu'):
+                 k_tag_neighbors: int = 100, k_neighbors: int = 5, weighted_sum: bool = False, device='cpu'):
         """
 
         Args:
@@ -23,8 +23,8 @@ class PoseDataSet(Dataset):
             zero_distance_pose_percentage (float, optional): The percenteage of the data that is the 0-set. Defaults to 1.0.
             noise_sigma (float, optional): When creating a random pose, what is the std of noise to add to an existing pose. 
                 The larger the sigma, the further the made up pose can get. Defaults to 0.
-            k_neighbors: When creating random poses, for each random pose look for the `k_neighbors` closest poses (in eucledian distance) 
-                then for them calculate the mean quaternion distance.
+            k_tag_neighbors: When creating random poses, for each random pose look for the `k_tag_neighbors` closest poses (in eucledian distance).
+            k_neighbors: for all the k_tag_neighbors we calculate the actual distance and take the k_neighbors closest poses. For them we calculate the mean distance.
             weighted_sum: Whether to use weighted sum when calculating the distance of a random pose from the valid poses. 
                 The weighted sum gives more weight the closer the rotation is to the root.
         """
@@ -34,6 +34,7 @@ class PoseDataSet(Dataset):
         self.poses = []
         self.distances = []
         self.zero_distance_pose_percentage = zero_distance_pose_percentage
+        self.k_tag_neighbors = k_tag_neighbors
         self.k_neighbors = k_neighbors
         self.noise_sigma = noise_sigma
         self.pose_weights = torch.tensor([1] * 21) if not weighted_sum else torch.tensor([7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 3, 3, 3, 2, 2, 1, 1])
@@ -71,7 +72,7 @@ class PoseDataSet(Dataset):
         self.distances = torch.zeros(self.poses.shape[0], dtype=torch.float32)
         assert 0 < self.zero_distance_pose_percentage <= 1, f"`non_zero_pose_percentage` is {self.zero_distance_pose_percentage} and must be between 0-1"
 
-        self.knn = NearestNeighbors(n_neighbors=self.k_neighbors)
+        self.knn = NearestNeighbors(n_neighbors=self.k_tag_neighbors)
         self.knn.fit(self.poses.cpu().numpy().reshape(-1, 84))
         
         # Create non zero poses
@@ -112,8 +113,10 @@ class PoseDataSet(Dataset):
 
     def _calculate_distance_to_zero_set(self, poses_rotations) -> float:
         """ Calculate distance to zero set in the following way:
-            1. Get the k nearest zero-set poses from the valid data
-            2. calculate the mean quaternion distance from the pose_rotations to them.
+            1. Get the k' nearest zero-set poses from the valid data in euclidean space.
+            2. calculate the quaternion distance from the pose_rotations to them.
+            3. get the k nearest zero-set poses from the valid data in quaternion space.
+            4. return their mean
             
             quaternion distance is calculated as follows:
             $\sqrt {(\sum_1^21 (w_i arccos(|<q_1, q_2>|)^2 ))}$
@@ -130,8 +133,9 @@ class PoseDataSet(Dataset):
             k_nearest_poses_indices = self.knn.kneighbors(single_pose.flatten()[None])[1]
             k_nearest_poses = self.valid_poses[k_nearest_poses_indices]
             quaternion_dists = torch.arccos(torch.abs(torch.einsum("bpq,pq->bp", k_nearest_poses, single_pose))) ** 2
-            quaternion_dists = torch.sqrt(torch.sum(self.pose_weights * quaternion_dists, axis=1))
-            distances.append(quaternion_dists.mean())
+            quaternion_dists = torch.sqrt(torch.sum(self.pose_weights * quaternion_dists, axis=1) / 2)
+            nearest_dists = quaternion_dists.sort()[0][:self.k_neighbors]
+            distances.append(nearest_dists.mean())
         return torch.tensor(distances, dtype=torch.float32).to(self.device)
 
     def _double_cover_augmentation(self):
@@ -150,7 +154,7 @@ class PoseDataSet(Dataset):
 
 
 if __name__ == '__main__':
-    amass_path = Path("/Users/orlichter/Documents/school/amass")
-    dataset = PoseDataSet(amass_path, zero_distance_pose_percentage=0.3)
+    amass_path = Path("/home/or/school/amass")
+    dataset = PoseDataSet(amass_path, process_data=True, zero_distance_pose_percentage=0.3)
     dataset[ - 10000]
     pass
