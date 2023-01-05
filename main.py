@@ -13,6 +13,7 @@ def train(config, config_path):
     if test:
         trainer.inference(trainer.ep)
     for i in range(trainer.ep, config['train']['max_epoch']):
+        print(f"Starting epoch {i}")
         _, _ = trainer.train_model(i)
         if val and i % 2 == 0:
             trainer.validate(i)

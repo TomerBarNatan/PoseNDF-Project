@@ -1,5 +1,5 @@
 data:
-  data_dir: "/Users/orlichter/Documents/school/amass" # Training data directory
+  data_dir: 'C:\Users\tomer\PycharmProjects\PoseNDF-Project\amass\HDM05'
   sample_pt: 100000
   dc: dc
   sample_distribution: [0.5, 0.5]
@@ -36,7 +36,7 @@ model:
     act: lrelu
     beta: 100
 train:
-  val: False
+  val: True
   test: False
   pde: False
   device: cpu
@@ -47,7 +47,7 @@ train:
   eval: False
   num_worker: 5
   max_epoch: 100
-  loss_type: l1   #todo
+  loss_type: l2   #todo
   clamp_dist: 0.0  # 2dsphere data is prepared in such way
   man_loss: 1.0
   dist: 1.0

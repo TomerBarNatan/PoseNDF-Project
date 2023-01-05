@@ -47,8 +47,8 @@ class PoseDataSet(Dataset):
             print(f"Loading preprocessed data from: `{data_output_path}`")
             with open(str(data_output_path), 'rb') as f:
                 data = pkl.load(f)
-                self.distances = data['distances']
-                self.poses = data['poses']
+                self.distances = data['distances'][~torch.isnan(data['distances'])]
+                self.poses = data['poses'][~torch.isnan(data['distances'])]
 
     def _process_new_data(self):
         """
