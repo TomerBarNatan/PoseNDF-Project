@@ -46,8 +46,8 @@ class PoseDataSet(Dataset):
             print(f"Loading preprocessed data from: `{data_output_path}`")
             with open(str(data_output_path), 'rb') as f:
                 data = pkl.load(f)
-                self.distances = data['distances']
-                self.poses = data['poses']
+                self.distances = data['distances'][~torch.isnan(data['distances'])]
+                self.poses = data['poses'][~torch.isnan(data['distances'])]
 
     def _process_new_data(self):
         """
@@ -150,7 +150,7 @@ class PoseDataSet(Dataset):
 
 
 if __name__ == '__main__':
-    amass_path = Path("/Users/orlichter/Documents/school/amass")
+    amass_path = "C://Users//tomer//PycharmProjects//PoseNDF-Project//amass//BMLmovi"
     dataset = PoseDataSet(amass_path, zero_distance_pose_percentage=0.3)
-    dataset[ - 10000]
+    # dataset[ - 10000]
     pass
