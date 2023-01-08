@@ -56,6 +56,7 @@ class PoseDataSet(Dataset):
             when done, create the rest of the non zero poses such that the percent of 0 pose data will be  self.zero_distance_pose_percentage.
             Save everything in dataset and create a file to save all the data.
         """
+        output_file_path = self.data_dir / f'processed_poses_{self.zero_distance_pose_percentage}_{self.noise_sigma}.pkl'
         data_files = self.data_dir.rglob('*.npz')
         for mocap_file in data_files:
             mocap_data = np.load(mocap_file)
@@ -67,6 +68,7 @@ class PoseDataSet(Dataset):
             # pose_data_quaternion = axis_angle_to_quaternion(pose_data_axis_angel)
             self.poses.append(pose_data_quaternion.type(torch.float32))
         self.poses = torch.cat(self.poses).to(self.device)
+        print(f"Loaded {self.poses.shape[0]} poses from files")
         self.valid_poses = self.poses.clone()
         self.distances = torch.zeros(self.poses.shape[0], dtype=torch.float32)
         assert 0 < self.zero_distance_pose_percentage <= 1, f"`non_zero_pose_percentage` is {self.zero_distance_pose_percentage} and must be between 0-1"
@@ -77,13 +79,16 @@ class PoseDataSet(Dataset):
         # Create non zero poses
         amount_of_non_zero_poses = int(len(self.poses) / self.zero_distance_pose_percentage) - len(self.poses)
         pose_rotations = self._create_non_zero_pose(amount_of_non_zero_poses)
-        distance = self._calculate_distance_to_zero_set(pose_rotations)
-        self.poses = torch.cat([self.poses, pose_rotations])
-        self.distances = torch.hstack([self.distances, distance])
+        for batch_poses in tqdm(torch.split(pose_rotations, 1000)):
+            distance = self._calculate_distance_to_zero_set(batch_poses)
+            self.poses = torch.cat([self.poses, batch_poses])
+            self.distances = torch.hstack([self.distances, distance])
+            with open(str(output_file_path), 'wb') as f:
+                pkl.dump({"poses": self.poses, "distances": self.distances}, f)
 
         # double cover augmentation
         self._double_cover_augmentation()
-        
+
         nan_distances = self.distances.isnan()
         if nan_distances.any():
             print("Found some nan distances. Maybe there's a bug. For now removing them")
@@ -150,7 +155,7 @@ class PoseDataSet(Dataset):
 
 
 if __name__ == '__main__':
-    amass_path = Path("/Users/orlichter/Documents/school/amass")
-    dataset = PoseDataSet(amass_path, zero_distance_pose_percentage=0.3)
+    amass_path = Path("/Users/orlichter/Documents/school/amass/data/HDM05")
+    dataset = PoseDataSet(amass_path, process_data=True, zero_distance_pose_percentage=0.3, noise_sigma=0.3)
     dataset[ - 10000]
     pass

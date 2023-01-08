@@ -10,7 +10,7 @@ experiment:
   data_name: PoseNDFdata
   type: PoseNDF_Trainer
   inp_name: xyz
-  exp_name: small_data
+  exp_name: small_data_l2
   val: True
 model:
   PosEnc: PosEnc
@@ -47,7 +47,7 @@ train:
   eval: False
   num_worker: 5
   max_epoch: 100
-  loss_type: l1   #todo
+  loss_type: l2   #todo
   clamp_dist: 0.0  # 2dsphere data is prepared in such way
   man_loss: 1.0
   dist: 1.0
