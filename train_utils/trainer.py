@@ -9,7 +9,6 @@ from dataset.pose_dataset import PoseDataSet
 from train_utils.average_meter import AverageMeter
 import shutil
 
-
 class PoseNDF_trainer:
 
     def __init__(self, config):
@@ -29,8 +28,8 @@ class PoseNDF_trainer:
         if config['train']['continue_train']:
             self.ep = self.load_checkpoint()
 
-        train_dataset = PoseDataSet(data_dir=config['data']['data_dir'])
-        val_dataset = PoseDataSet(data_dir=config['data']['data_dir'])
+        train_dataset = PoseDataSet(data_dir=config['data']['data_dir'], zero_distance_pose_percentage=0.3, noise_sigma=0.3)
+        val_dataset = PoseDataSet(data_dir=config['data']['data_dir'], zero_distance_pose_percentage=0.3, noise_sigma=0.3)
         self.train_dataset = self.get_loader(train_dataset, num_workers=config['train']['num_worker'])
         self.val_dataset = self.get_loader(val_dataset, num_workers=config['train']['num_worker'])
 
@@ -49,6 +48,8 @@ class PoseNDF_trainer:
             os.makedirs(self.checkpoint_path)
         self.writer = SummaryWriter(self.exp_path + 'summary')
         self.loss_func = nn.L1Loss() if loss_type == "l1" else nn.MSELoss()
+        self.eikonal_weight = float(config['train']['eikonal'])
+        self.distance_weight = float(config['train']['dist'])
 
     def train_model(self, ep=None):
 
@@ -57,9 +58,14 @@ class PoseNDF_trainer:
         loss = 0.0
         for i, (poses, labels) in enumerate(self.train_dataset):
             self.optimizer.zero_grad()
+            poses.requires_grad = True
             dist_pred = self.model(poses)
+            grads_wrt_input, = torch.autograd.grad(dist_pred, poses, grad_outputs=dist_pred.data.new(dist_pred.shape).fill_(1),
+                                                    create_graph=True)
             dist_gt = labels.to(device=self.device)
-            loss = self.loss_func(dist_pred[:, 0], dist_gt)
+            loss = self.loss_func(dist_pred[:, 0], dist_gt) * self.distance_weight
+            loss += ((torch.norm(grads_wrt_input.view(self.batch_size, -1), dim=1) - 1) ** 2).mean() * self.eikonal_weight
+            
             loss.backward()
             self.optimizer.step()
             epoch_loss.update(loss, self.batch_size)
