@@ -28,8 +28,12 @@ class PoseNDF_trainer:
         if config['train']['continue_train']:
             self.ep = self.load_checkpoint()
 
-        train_dataset = PoseDataSet(data_dir=config['data']['data_dir'], zero_distance_pose_percentage=0.3, noise_sigma=0.3)
-        val_dataset = PoseDataSet(data_dir=config['data']['data_dir'], zero_distance_pose_percentage=0.3, noise_sigma=0.3)
+        train_dataset = PoseDataSet(data_dir=config['data']['data_dir'],
+                                    zero_distance_pose_percentage=config['data']['zero_distance_pose_percentage'],
+                                    noise_sigmas=config['data']['noise_sigmas'])
+        val_dataset = PoseDataSet(data_dir=config['data']['data_dir'],
+                                    zero_distance_pose_percentage=config['data']['zero_distance_pose_percentage'],
+                                    noise_sigmas=config['data']['noise_sigmas'])
         self.train_dataset = self.get_loader(train_dataset, num_workers=config['train']['num_worker'])
         self.val_dataset = self.get_loader(val_dataset, num_workers=config['train']['num_worker'])
 

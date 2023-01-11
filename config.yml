@@ -1,16 +1,16 @@
 data:
-  data_dir: '/Users/orlichter/Documents/school/amass/data/HDM05'
+  data_dir: '/Users/orlichter/Documents/school/amass/data/ACCAD'
   sample_pt: 100000
   dc: dc
-  sample_distribution: [0.5, 0.5]
-  sample_sigmas: [ 0.0, 0.001]
+  noise_sigmas: [0.01, 0.05, 0.1, 0.25, 0.5]
+  zero_distance_pose_percentage: 0.3
 experiment:
   bodymodel: smpl
   root_dir: ./posendf_model/ # Where to save checkpoints and final trained model_quat #todo
   data_name: PoseNDFdata
   type: PoseNDF_Trainer
   inp_name: xyz
-  exp_name: far_then_close_l2_loss
+  exp_name: varied_sigmas_l2_1_and_eikonal_0.5
   val: True
 model:
   PosEnc: PosEnc
@@ -51,7 +51,7 @@ train:
   clamp_dist: 0.0  # 2dsphere data is prepared in such way
   man_loss: 1.0
   dist: 1.0
-  eikonal: 1.0
+  eikonal: 0.5
   body_enc: true
   disp_reg: true
   grad: false
