@@ -2,7 +2,7 @@ import torch
 from sklearn.neighbors import NearestNeighbors
 import numpy as np
 from torch.utils.data import Dataset
-# from pytorch3d.transforms import axis_angle_to_quaternion
+from typing import List
 from scipy.spatial.transform import Rotation as R
 from pathlib import Path
 from tqdm import tqdm
@@ -13,15 +13,15 @@ np.random.seed(123)
 
 
 class PoseDataSet(Dataset):
-    def __init__(self, data_dir: str, process_data: bool = False, zero_distance_pose_percentage: float = 0.3, noise_sigma: float = 0.01,
-                 k_tag_neighbors: int = 100, k_neighbors: int = 5, weighted_sum: bool = False, device='cpu'):
+    def __init__(self, data_dir: str, process_data: bool = False, zero_distance_pose_percentage: float = 0.3, 
+                 noise_sigmas: List[float] = [0.01, 0.05, 0.1, 0.25, 0.5], k_tag_neighbors: int = 100, k_neighbors: int = 5, weighted_sum: bool = True, device='cpu'):
         """
 
         Args:
             data_dir (Path): _description_
             process_data (bool): Whether to recalculate non-zero poses from scratch.
             zero_distance_pose_percentage (float, optional): The percenteage of the data that is the 0-set. Defaults to 1.0.
-            noise_sigma (float, optional): When creating a random pose, what is the std of noise to add to an existing pose. 
+            noise_sigma (List[float], optional): When creating a random pose, what is the std of noise to add to an existing pose. 
                 The larger the sigma, the further the made up pose can get. Defaults to 0.
             k_tag_neighbors: When creating random poses, for each random pose look for the `k_tag_neighbors` closest poses (in eucledian distance).
             k_neighbors: for all the k_tag_neighbors we calculate the actual distance and take the k_neighbors closest poses. For them we calculate the mean distance.
@@ -36,11 +36,12 @@ class PoseDataSet(Dataset):
         self.zero_distance_pose_percentage = zero_distance_pose_percentage
         self.k_tag_neighbors = k_tag_neighbors
         self.k_neighbors = k_neighbors
-        self.noise_sigma = noise_sigma
+        self.noise_sigmas = noise_sigmas
         self.pose_weights = torch.tensor([1] * 21) if not weighted_sum else torch.tensor([7, 7, 7, 6, 6, 6, 5, 5, 5, 4, 4, 4, 4, 4, 3, 3, 3, 2, 2, 1, 1])
         self.pose_weights = torch.nn.functional.normalize(self.pose_weights.type(torch.float32), dim=0).to(self.device)
 
-        data_output_path = self.data_dir / f'processed_poses_{self.zero_distance_pose_percentage}_{self.noise_sigma}.pkl'
+        self.weighted = 'weighted' if weighted_sum else 'not_weighted'
+        data_output_path = self.data_dir / f'processed_poses_{self.zero_distance_pose_percentage}_{self.noise_sigmas}_{self.weighted}.pkl'
         if process_data or not (data_output_path).exists():
             self._process_new_data()
         else:
@@ -57,7 +58,7 @@ class PoseDataSet(Dataset):
             when done, create the rest of the non zero poses such that the percent of 0 pose data will be  self.zero_distance_pose_percentage.
             Save everything in dataset and create a file to save all the data.
         """
-        output_file_path = self.data_dir / f'processed_poses_{self.zero_distance_pose_percentage}_{self.noise_sigma}.pkl'
+        output_file_path = self.data_dir / f'processed_poses_{self.zero_distance_pose_percentage}_{self.noise_sigmas}_{self.weighted}.pkl'
         data_files = self.data_dir.rglob('*.npz')
         for mocap_file in data_files:
             mocap_data = np.load(mocap_file)
@@ -76,7 +77,7 @@ class PoseDataSet(Dataset):
 
         self.knn = NearestNeighbors(n_neighbors=self.k_tag_neighbors)
         self.knn.fit(self.poses.cpu().numpy().reshape(-1, 84))
-        
+
         # Create non zero poses
         amount_of_non_zero_poses = int(len(self.poses) / self.zero_distance_pose_percentage) - len(self.poses)
         pose_rotations = self._create_non_zero_pose(amount_of_non_zero_poses)
@@ -96,7 +97,6 @@ class PoseDataSet(Dataset):
             self.distances = self.distances[~nan_distances]
             self.poses = self.poses[~nan_distances]
         
-        output_file_path = self.data_dir / f'processed_poses_{self.zero_distance_pose_percentage}_{self.noise_sigma}.pkl'
         print(f"Saving processed data to: {output_file_path}")
         with open(str(output_file_path), 'wb') as f:
             pkl.dump({"poses": self.poses, "distances": self.distances}, f)
@@ -110,11 +110,15 @@ class PoseDataSet(Dataset):
         Returns:
             torch.Tensor: a random non-zero pose. 21x4
         """
-        idx = np.random.randint(0, self.valid_poses.shape[0], amount_of_non_zero_poses)  # TODO: add seed
-        random_pose = self.valid_poses[idx].clone()
-        random_pose += torch.normal(0, self.noise_sigma, random_pose.shape)
-        random_pose /= np.linalg.norm(random_pose, axis=2, keepdims=True)
-        return random_pose.type(torch.float32)
+        random_poses = []
+        single_sigma_amount = amount_of_non_zero_poses // len(self.noise_sigmas)
+        for noise_sigma in self.noise_sigmas:
+            idx = np.random.randint(0, self.valid_poses.shape[0], single_sigma_amount)  # TODO: add seed
+            random_pose = self.valid_poses[idx].clone()
+            random_pose += torch.normal(0, noise_sigma, random_pose.shape)
+            random_pose /= np.linalg.norm(random_pose, axis=2, keepdims=True)
+            random_poses.append(random_pose)
+        return torch.cat(random_poses).type(torch.float32)
 
     def _calculate_distance_to_zero_set(self, poses_rotations) -> float:
         """ Calculate distance to zero set in the following way:
@@ -143,12 +147,12 @@ class PoseDataSet(Dataset):
             distances.append(nearest_dists.mean())
         return torch.tensor(distances, dtype=torch.float32).to(self.device)
 
-    def _double_cover_augmentation(self):
+    def _double_cover_augmentation(self, percentage: float = 0.2):
         """
             Since a quaternion q and a quaternion -q are the same rotation, augment half of the quaternions to be -q
         """
         amount_of_quaternions = self.poses.shape[0] * self.poses.shape[1]
-        idx = np.random.choice(range(amount_of_quaternions), amount_of_quaternions // 2, replace=False)
+        idx = np.random.choice(range(amount_of_quaternions), int(amount_of_quaternions * percentage), replace=False)
         self.poses.reshape(-1, 4)[idx] *= -1
                 
     def __len__(self) -> int:
@@ -159,7 +163,7 @@ class PoseDataSet(Dataset):
 
 
 if __name__ == '__main__':
-    amass_path = Path("/Users/orlichter/Documents/school/amass/data/HDM05")
-    dataset = PoseDataSet(amass_path, process_data=True, zero_distance_pose_percentage=0.3, noise_sigma=0.3)
+    amass_path = Path("/Users/orlichter/Documents/school/amass/data/ACCAD")
+    dataset = PoseDataSet(amass_path, process_data=True, zero_distance_pose_percentage=0.3, weighted_sum=True)
     dataset[ - 10000]
     pass
