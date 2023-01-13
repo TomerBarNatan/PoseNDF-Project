@@ -77,8 +77,11 @@ def optimize_quaternion_poses_toward_gradient(quaternion_poses: torch.Tensor, mo
         loss = dist_pred.mean()
         loss.backward()
         normalized_grad = (quaternion_poses.grad.reshape(-1, 84) / torch.norm(quaternion_poses.grad.reshape(-1, 84), dim=1)[..., None]).reshape(-1, 21, 4)
-        quaternion_poses.data = quaternion_poses - dist_pred[:, None] * normalized_grad
-        quaternion_poses.data /= torch.norm(quaternion_poses.data, dim=2, keepdim=True)
+        non_zero_distance_indices = dist_pred[:, 0] > 1e-8
+        # Gradient step on non zero distances
+        quaternion_poses.data[non_zero_distance_indices] = quaternion_poses[non_zero_distance_indices] - dist_pred[non_zero_distance_indices, None] * normalized_grad[non_zero_distance_indices]
+        # Project to 4-d sphere
+        quaternion_poses.data[non_zero_distance_indices] /= torch.norm(quaternion_poses.data[non_zero_distance_indices], dim=2, keepdim=True)
         tqdm_range.set_postfix_str(f'loss={loss.item(): .5f}')
         if loss < min_loss_threshold:
             print("Good enough loss achieved, stopping optimization")
