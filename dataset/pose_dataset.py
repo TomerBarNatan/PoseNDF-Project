@@ -163,7 +163,7 @@ class PoseDataSet(Dataset):
 
 
 if __name__ == '__main__':
-    amass_path = Path("/Users/orlichter/Documents/school/amass/data/ACCAD")
-    dataset = PoseDataSet(amass_path, process_data=True, zero_distance_pose_percentage=0.3, weighted_sum=True)
+    amass_path = Path("/Users/orlichter/Documents/school/amass/data/HDM05")
+    dataset = PoseDataSet(amass_path, process_data=True, zero_distance_pose_percentage=0.5, weighted_sum=True)
     dataset[ - 10000]
     pass

@@ -17,7 +17,6 @@ except ImportError:
 from body_visualizer.mesh.mesh_viewer import MeshViewer
 from train_utils.models import PoseNDF
 from denoising.denoise_utils import render_pose, optimize_quaternion_poses_toward_gradient
-
 torch.manual_seed(123)
 np.random
 
