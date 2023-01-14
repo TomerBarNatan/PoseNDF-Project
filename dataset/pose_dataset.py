@@ -18,7 +18,7 @@ class PoseDataSet(Dataset):
         """
 
         Args:
-            data_dir (Path): _description_
+            data_dir (Path): path to dir contating (can be in subfolders) npz files as found in AMASS dataset
             process_data (bool): Whether to recalculate non-zero poses from scratch.
             zero_distance_pose_percentage (float, optional): The percenteage of the data that is the 0-set. Defaults to 1.0.
             noise_sigma (List[float], optional): When creating a random pose, what is the std of noise to add to an existing pose. 
@@ -163,7 +163,7 @@ class PoseDataSet(Dataset):
 
 
 if __name__ == '__main__':
-    amass_path = Path("/Users/orlichter/Documents/school/amass/data/ACCAD")
-    dataset = PoseDataSet(amass_path, process_data=True, zero_distance_pose_percentage=0.3, weighted_sum=True)
+    amass_path = Path("/Users/orlichter/Documents/school/amass/data/HDM05")
+    dataset = PoseDataSet(amass_path, process_data=True, zero_distance_pose_percentage=0.5, weighted_sum=True)
     dataset[ - 10000]
     pass
