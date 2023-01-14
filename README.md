@@ -6,7 +6,7 @@ We are implementing [Pose-NDF](https://virtualhumans.mpi-inf.mpg.de/posendf/) pa
 ![](https://virtualhumans.mpi-inf.mpg.de/posendf/teaser.png)
 
 ## Data Creation 
-We use [AMASS](https://amass.is.tue.mpg.de/) dataset. This dataset holds all valid poses (0-distance). A SMPLX pose consists of 21 rotations $\theta_{i\in{0,20}}$. A single pose $\theta=\left(\theta_0, ..., \theta_{20} \right) $ 
+We use [AMASS](https://amass.is.tue.mpg.de/) dataset. This dataset holds all valid poses (0-distance). A SMPLX pose consists of 21 rotations $\theta_{i\in{0,20}}$. A single pose $\theta=\left(\theta_0, ..., \theta_{20} \right) $
 
 In order to create a non-zero poses we do the following:
 1. Choose a valid pose at random
@@ -26,5 +26,4 @@ In order to create a non-zero poses we do the following:
 ## Training Process
 
 ## Denoising
-
-## Experiments
+The denoising process
