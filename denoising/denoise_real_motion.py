@@ -23,11 +23,11 @@ torch.manual_seed(123)
 np.random
 
 
-NOISE_SIGMA = 0.01
-GT_MOTION_PATH = '/home/or/school/amass/data/HDM05/HDM_tr_05-03_04_120_stageii.npz'
+NOISE_SIGMA = 0.02
+GT_MOTION_PATH = '/home/or/school/amass/data/ACCAD/Male2MartialArtsKicks_c3d/G2_-_Sidekick_leading_left_stageii.npz'
 PATH_TO_SMPLX_MODELS = "/home/or/school/smplx/models/smplx"  # this is the local path to th SMPL-X models files downloaded from here https://smpl-x.is.tue.mpg.de/downloads
-PATH_TO_SAVE_IMAGES = "/home/or/school/PoseNDF-Project/denoising/results/real_motion"
-PATH_TO_POSENDF_CHECKPOINT = "/home/or/school/posendf_model/varied_sigmas_l2_1_and_eikonal_0.5_lrelu_l2_1e-05"
+PATH_TO_SAVE_IMAGES = "/home/or/school/PoseNDF-Project/denoising/results/real_motion_tomer_train_0.5"
+PATH_TO_POSENDF_CHECKPOINT = "/home/or/school/posendf_model/tomer_train_0.5"
 GOOD_ENOUGH_LOSS = 1e-3
 
 
@@ -51,7 +51,7 @@ def main():
         image = render_pose(pose, smplx_model)
         cv2.imwrite(f'{PATH_TO_SAVE_IMAGES}/noised/{str(i).zfill(6)}.png', image)
 
-    optimized_quaternion_poses = optimize_quaternion_poses_toward_gradient(noised_poses_quaternion, PoseNDF.from_checkpoint_dir(Path(PATH_TO_POSENDF_CHECKPOINT))).detach().cpu()
+    optimized_quaternion_poses = optimize_quaternion_poses_toward_gradient(noised_poses_quaternion, PoseNDF.from_checkpoint_dir(Path(PATH_TO_POSENDF_CHECKPOINT)), min_loss_threshold=GOOD_ENOUGH_LOSS).detach().cpu()
     optimized_rotvec_poses = torch.stack([torch.from_numpy(R.from_quat(x_i).as_rotvec()) for x_i in torch.unbind(optimized_quaternion_poses, dim=0)], dim=0).type(torch.float32)
     for i, pose in tqdm(enumerate(optimized_rotvec_poses), desc="Rendering denoised poses"):
         image = render_pose(pose, smplx_model)
