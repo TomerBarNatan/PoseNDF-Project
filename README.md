@@ -21,9 +21,35 @@ In order to create a non-zero poses we do the following:
 ** We use weighted sum to give more weight to rotations that are closer to the root as these affect their children as well as themselves.
 
 ** Notice that SMPLX uses axis angles as rotation representation while we use quaternions. When createing the data we switch to quaternions and when rendering the pose we switch back to axis angle.
+
+### Creating a PoseDataset
+In order to create a PoseDataset you need give the following parameters. 
+
+On first call all data is created and saved to a pickle file in the data dir so that in the following calls, no data will need to be recreated.
+
+```
+data_dir (Path): path to dir contating (can be in subfolders) npz files as found in AMASS dataset
+process_data (bool): Whether to recalculate non-zero poses from scratch.
+zero_distance_pose_percentage (float, optional): The percenteage of the data that is the 0-set. Defaults to 1.0.
+noise_sigma (List[float], optional): When creating a random pose, what is the std of noise to add to an existing pose. 
+    The larger the sigma, the further the made up pose can get. Defaults to 0.
+k_tag_neighbors: When creating random poses, for each random pose look for the `k_tag_neighbors` closest poses (in eucledian distance).
+k_neighbors: for all the k_tag_neighbors we calculate the actual distance and take the k_neighbors closest poses. For them we calculate the mean distance.
+weighted_sum: Whether to use weighted sum when calculating the distance of a random pose from the valid poses. 
+    The weighted sum gives more weight the closer the rotation is to the root.
+```
 ## Model Architecture
 
 ## Training Process
 
 ## Denoising
-The denoising process
+The denoising process has 2 main options:
+1. Creating X random poses and "denoisng" them to the manifold. (`denoising_random_motion.py`)
+2. Taking an existing pose sequence adding noise to it, then denoising it. (`denoising_real_motion.py`)
+
+Both scripts can be found under `denoising` folder. All inputs to the scripts are in capital letters at the beggining of the files.
+There are 2 options for the pose projection onto the learnt manifold:
+
+a. Using SGD to project the poses.
+
+b. As the NN learnt a distance function, the output of the network should be the step size we need to take. As quaternions lie on a sphere and not on all $\R^4$, after the gradient step we project them to the sphere. We might need a few steps of this to reach a good distance to the sphere..
