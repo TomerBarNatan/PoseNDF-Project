@@ -39,8 +39,24 @@ weighted_sum: Whether to use weighted sum when calculating the distance of a ran
     The weighted sum gives more weight the closer the rotation is to the root.
 ```
 ## Model Architecture
+We implement the hierarchical pose encoding network using structural MLP consists of 7 hidden layers for distance field
+prediction. We use ReLU as activation for the hidden layers.
 
 ## Training Process
+After a pickle file was created, edit the config.yml file in order to define an experimental setup.
+```
+data:
+        # Training data details
+model:
+        # Define the model architecture, number of hidden layers and activation.
+train:
+        # How many epochs, batch size, device, optimizer and num of workers.
+```
+
+Once configuration file is set, run the following:
+```
+python trainer.py --config=config.yml
+```
 
 ## Denoising
 The denoising process has 2 main options:
