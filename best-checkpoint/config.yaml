@@ -1,0 +1,61 @@
+data:
+  data_dir: '/Users/orlichter/Documents/school/amass/data/HDM05'
+  sample_pt: 100000
+  dc: dc
+  noise_sigmas: [0.01, 0.05, 0.1, 0.25, 0.5]
+  zero_distance_pose_percentage: 0.5
+experiment:
+  bodymodel: smpl
+  root_dir: ./posendf_model/ # Where to save checkpoints and final trained model_quat #todo
+  data_name: PoseNDFdata
+  type: PoseNDF_Trainer
+  inp_name: xyz
+  exp_name: varied_sigmas_l2_1_and_eikonal_0.5_hdm05
+  val: True
+model:
+  PosEnc: PosEnc
+  CanSDF:
+    name: 'SDF'
+    total_dim: 960
+    in_dim: 84
+    num_parts: 21
+    num_layers: 5
+    ff_enc: False
+    dims: [ 512, 512, 512, 512, 512, 512, 512 ]
+    act: lrelu
+    beta: 100
+  StrEnc:
+    use: False
+    name: 'StructureEncoder'
+    out_dim: 6
+    in_dim: 84
+    num_parts: 24
+    pose_enc: False
+    num_layers: 2
+    ff_enc: False
+    act: lrelu
+    beta: 100
+train:
+  val: True
+  test: False
+  pde: False
+  device: cpu
+  batch_size: 1024
+  continue_train: true
+  optimizer: Adam
+  optimizer_param: 0.00001 #1e-4  #1e-4 for lr and 0.9 for momentum
+  eval: False
+  num_worker: 5
+  max_epoch: 50
+  loss_type: l2   #todo
+  clamp_dist: 0.0  # 2dsphere data is prepared in such way
+  man_loss: 1.0
+  dist: 1.0
+  eikonal: 0.5
+  body_enc: true
+  disp_reg: true
+  grad: false
+  train_stage_1: 100000  #pretrain weight prediction
+  train_stage_2: 100000  #freeze weight prediction
+  square: False
+  abs: True
